@@ -10,7 +10,7 @@ The app is overall very simple, but is relevant to the company as it saves them 
 
 Here is what the app looks like:
 
-![alt tag](http://mccoygames.com/wp-content/uploads/2017/01/screen696x696-3.jpeg)
+![alt tag](http://mccoygames.com/wp-content/uploads/2017/01/Screen-Shot-2017-01-28-at-7.46.55-AM.png)
 
 
 Referencing the image above, if you press the "Redeem" button, all you have to do is scan the stores QR Code. Look at the following image below.
@@ -19,8 +19,6 @@ Referencing the image above, if you press the "Redeem" button, all you have to d
 
 
 Now you're on your way to a free drink! ;)
-
-![alt tag](http://mccoygames.com/wp-content/uploads/2017/01/screen696x696-1-1.jpeg)
 
 
 
