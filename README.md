@@ -1,5 +1,5 @@
-# 85Degree-Card
-A rewards/loyalty card app that tracks loyalty points for the company [85Degree Cafe](http://www.85cbakerycafe.com/) that tracks loyalty points.
+# 7Leaves-Card-for-Android
+A rewards/loyalty card app that tracks loyalty points for the company [7 Leaves Cafe](http://7leavescafe.com/) that tracks loyalty points.
 
 
 The app is overall very simple, but is relevant to the company as it saves them money by having them not print rewards/loyalty cards and buy stamps/ink.
