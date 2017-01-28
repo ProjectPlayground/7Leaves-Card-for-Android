@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/activity_main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="com.jasonmccoy.a7leavescardx.MainActivity">
+
+    <ImageView
+        android:id="@+id/ivBack"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitXY"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:orientation="vertical"
+        android:layout_margin="20dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <ImageView
+                android:id="@+id/g1"
+                android:layout_width="@dimen/glass_width"
+                android:layout_height="@dimen/glass_height"
+                android:padding="3dp"
+                android:scaleType="fitXY"/>
+
+            <ImageView
+                android:id="@+id/g2"
+                android:layout_width="@dimen/glass_width"
+                android:layout_height="@dimen/glass_height"
+                android:padding="3dp"
+                android:layout_marginStart="5dp"
+                android:layout_marginLeft="5dp"
+                android:scaleType="fitXY"/>
+
+            <ImageView
+                android:id="@+id/g3"
+                android:layout_width="@dimen/glass_width"
+                android:layout_height="@dimen/glass_height"
+                android:padding="3dp"
+                android:layout_marginStart="5dp"
+                android:layout_marginLeft="5dp"
+                android:scaleType="fitXY"/>
+
+            <ImageView
+                android:id="@+id/g4"
+                android:layout_width="@dimen/glass_width"
+                android:layout_height="@dimen/glass_height"
+                android:padding="3dp"
+                android:layout_marginStart="5dp"
+                android:layout_marginLeft="5dp"
+                android:scaleType="fitXY"/>
+
+            <ImageView
+                android:id="@+id/g5"
+                android:layout_width="@dimen/glass_width"
+                android:layout_height="@dimen/glass_height"
+                android:padding="3dp"
+                android:layout_marginStart="5dp"
+                android:layout_marginLeft="5dp"
+                android:scaleType="fitXY"/>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginTop="10dp">
+
+            <ImageView
+                android:id="@+id/g6"
+                android:layout_width="@dimen/glass_width"
+                android:layout_height="@dimen/glass_height"
+                android:padding="3dp"
+                android:scaleType="fitXY"/>
+
+            <ImageView
+                android:id="@+id/g7"
+                android:layout_width="@dimen/glass_width"
+                android:layout_height="@dimen/glass_height"
+                android:padding="3dp"
+                android:layout_marginStart="5dp"
+                android:layout_marginLeft="5dp"
+                android:scaleType="fitXY"/>
+
+            <ImageView
+                android:id="@+id/g8"
+                android:layout_width="@dimen/glass_width"
+                android:layout_height="@dimen/glass_height"
+                android:padding="3dp"
+                android:layout_marginStart="5dp"
+                android:layout_marginLeft="5dp"
+                android:scaleType="fitXY"/>
+
+            <ImageView
+                android:id="@+id/g9"
+                android:layout_width="@dimen/glass_width"
+                android:layout_height="@dimen/glass_height"
+                android:padding="3dp"
+                android:layout_marginStart="5dp"
+                android:layout_marginLeft="5dp"
+                android:scaleType="fitXY"/>
+
+            <ImageView
+                android:id="@+id/g10"
+                android:layout_width="@dimen/glass_width"
+                android:layout_height="@dimen/glass_height"
+                android:layout_marginStart="5dp"
+                android:layout_marginLeft="5dp"
+                android:scaleType="fitXY"/>
+
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btn"
+            android:layout_width="150dp"
+            android:layout_height="75dp"
+            android:layout_gravity="center"
+            android:layout_marginTop="50dp"
+            android:background="@drawable/redeembanner"
+            android:onClick="redeem"/>
+
+    </LinearLayout>
+
+</RelativeLayout>
