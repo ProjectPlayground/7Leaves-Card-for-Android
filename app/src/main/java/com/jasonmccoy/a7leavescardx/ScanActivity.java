@@ -1,179 +1,228 @@
 package com.jasonmccoy.a7leavescardx;
 
-import android.app.Activity;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.Bundle;
 import android.os.Vibrator;
+import android.support.annotation.NonNull;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
+import android.widget.Toast;
 
-import android.os.Bundle;
-import android.view.ViewGroup;
-
-import me.dm7.barcodescanner.zxing.ZXingScannerView;
-
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.remoteconfig.FirebaseRemoteConfig;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.Result;
+import com.jasonmccoy.a7leavescardx.items.Stamp;
+import com.jasonmccoy.a7leavescardx.items.User;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
-public class ScanActivity extends AppCompatActivity implements ZXingScannerView.ResultHandler {
+import me.dm7.barcodescanner.zxing.ZXingScannerView;
+import pub.devrel.easypermissions.AfterPermissionGranted;
+import pub.devrel.easypermissions.AppSettingsDialog;
+import pub.devrel.easypermissions.EasyPermissions;
 
-    private String oneItem = "qeAuyF9nzFLbHmqm4qQsx8bkBPx4qzFyxQp9XSH5xRBtfQdK4Ax6rC7tYchkVqYpYxJ4Ranpcsn4K9crL4xgj7rTegkt8qdsKVHHzGS9S3VUvzXpaTwJUx8bNR6DtTWesDgyMCZhjZ3myVCpmwy7dzwpKwZJRHpD73u5K4GxxWAFbHXvB6EfaKdewDARwX8eVBTtfNwW64KYjZXfjTnZYx5SZMZ9nvTZDJu2B73b4DDQbZHc4yBBLFHDsJEdP9veaQcQJBzuf7cUZd3H76m3dkdSvvfp8KVbsWcXwes9apepXr5dX9hDjDaTkLVh7R3CktUvC3xx7C7nLXSEMSVw9BuUWwL3EUkfJhyX7RDQDLvs4b9pFFXqmQLkuUpGyLgWvVuN6NdC5sV7U6ZCqZsu9FpznyBrDvSQHXJn7pct3VLfMbTLGUhbXVrag3cJYnBn4yRbTPMj3s4n3WMUNtG2ARzBnR4jVQtVw6NRTbMcaLNnNDkZSPmjp3qVPjr7YB85";
-    private String twoItem = "P97kwFp7xmrbVHPv4UbffeZkcaH7w8PdzrYNS6wvdwacFrQ5732kuA3AKb3jckvn4XdhBqJ7V7SGSCv7VYSPfZhXFzg32aCTue464Haf3gkyB5wzevHZWvSzkBqqVbQPXTnDyRhE9YDUkuvuXA4T8UFpy9bdKKVmNMqRMjCcpT2VghdLJtcGsP4N6YxQrLeSnzRTdQqucrTvHaGA2r6XAZtLq4BSp69zpVZNEaLxSjr2mbSCeAs7cCgkVfKXjFHF62cQWWJwybQMQzhBXSR67u7y7L6Y3Enzbzq4VB7VrBqdzddYUQDqJf39TC8sukhUWkmFRTbVEZBhSc4B8HHKMCdv7aYC86WnQX9KgBYbNNJZZDGCncrMmrb6GKnc5tUdm2xyLjaq92WXa6zvCaHjgGCKdwtyP2QE32sQrutYX7MYvbQaSS8p4yGFa7A2EUhZ2txSA4LunFPRheQQ8csgJyR5bdxVkNEYC7Mz8uZcjJqcjKtZuu32TYkHJMypPmhm";
+import static com.jasonmccoy.a7leavescardx.AppClass.DATABASE_NODE_USER_REDEEM_COUNT;
+import static com.jasonmccoy.a7leavescardx.AppClass.DATABASE_NODE_USER_STAMP_COUNT;
+import static com.jasonmccoy.a7leavescardx.AppClass.TEST;
 
-    private Activity mActivity;
-    private static final String FLASH_STATE = "FLASH_STATE";
-    private static final String AUTO_FOCUS_STATE = "AUTO_FOCUS_STATE";
-    private static final String SELECTED_FORMATS = "SELECTED_FORMATS";
-    private static final String CAMERA_ID = "CAMERA_ID";
-    private boolean mFlash;
-    private boolean mAutoFocus = true;
-    private ArrayList<Integer> mSelectedIndices;
-    private int mCameraId = -1;
+public class ScanActivity extends AppCompatActivity implements ZXingScannerView.ResultHandler,
+        EasyPermissions.PermissionCallbacks {
+
+    private static final String TAG = TEST + ScanActivity.class.getSimpleName();
+    private static final int RC_CAMERA_AND_LOCATION = 101;
+
+    private FirebaseRemoteConfig remoteConfig;
     private ZXingScannerView mScannerView;
-    private ViewGroup contentFrame;
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-
-        initVar();
-        initView();
-        initConfig(savedInstanceState);
-    }
-
-    private void initVar() {
-        mActivity = ScanActivity.this;
-    }
-
-    private void initView() {
+    protected void onCreate(Bundle state) {
+        super.onCreate(state);
         requestWindowFeature(Window.FEATURE_NO_TITLE);
-        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,WindowManager.LayoutParams.FLAG_FULLSCREEN);
-
+        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
         setContentView(R.layout.activity_scan);
 
-        contentFrame = (ViewGroup) findViewById(R.id.content_frame);
-    }
 
-    private void initConfig(Bundle state) {
-        if (state != null) {
-            mFlash = state.getBoolean(FLASH_STATE, false);
-            mAutoFocus = state.getBoolean(AUTO_FOCUS_STATE, true);
-            mSelectedIndices = state.getIntegerArrayList(SELECTED_FORMATS);
-            mCameraId = state.getInt(CAMERA_ID, -1);
-        } else {
-            mFlash = false;
-            mAutoFocus = true;
-            mSelectedIndices = null;
-            mCameraId = -1;
-        }
+        remoteConfig = FirebaseRemoteConfig.getInstance();
+        remoteConfig.activateFetched();
+
+        ViewGroup contentFrame = (ViewGroup) findViewById(R.id.content_frame);
+
 
         mScannerView = new ZXingScannerView(this);
-        mScannerView.setAutoFocus(mAutoFocus);
+        mScannerView.setAutoFocus(true);
         setupFormats();
         contentFrame.addView(mScannerView);
+
+        startScanner();
+        requestPermissions();
+    }
+
+    private void requestPermissions() {
+        boolean location = ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_CONTACTS)
+                != PackageManager.PERMISSION_GRANTED;
+        boolean camera = ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_CONTACTS)
+                != PackageManager.PERMISSION_GRANTED;
+
+
+        if (!(location && camera)) {
+            String[] perms = {android.Manifest.permission.CAMERA, android.Manifest.permission.ACCESS_FINE_LOCATION};
+            ActivityCompat.requestPermissions(this, perms, RC_CAMERA_AND_LOCATION);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        EasyPermissions.onRequestPermissionsResult(requestCode, permissions, grantResults, this);
+
+        String[] perms = {android.Manifest.permission.CAMERA, android.Manifest.permission.ACCESS_FINE_LOCATION};
+
+        if (requestCode == AppSettingsDialog.DEFAULT_SETTINGS_REQ_CODE) {
+            if (!EasyPermissions.hasPermissions(this, perms)) {
+                Toast.makeText(this, "Permissions were not granted.", Toast.LENGTH_SHORT).show();
+                finish();
+            }
+        }
+    }
+
+    @AfterPermissionGranted(RC_CAMERA_AND_LOCATION)
+    private void onReceivePermission() {
+        String[] perms = {android.Manifest.permission.CAMERA, android.Manifest.permission.ACCESS_FINE_LOCATION};
+        if (!EasyPermissions.hasPermissions(this, perms)) {
+            EasyPermissions.requestPermissions(this, getString(R.string.camera_and_location_rationale),
+                    RC_CAMERA_AND_LOCATION, perms);
+        }
+    }
+
+    @Override
+    public void onPermissionsDenied(int requestCode, List<String> perms) {
+        if (EasyPermissions.somePermissionPermanentlyDenied(this, perms)) {
+            new AppSettingsDialog.Builder(this).build().show();
+        }
+    }
+
+    @Override
+    public void onPermissionsGranted(int requestCode, List<String> perms) {
     }
 
     public void setupFormats() {
-        List<BarcodeFormat> formats = new ArrayList<BarcodeFormat>();
-        if (mSelectedIndices == null || mSelectedIndices.isEmpty()) {
-            mSelectedIndices = new ArrayList<Integer>();
-            for (int i = 0; i < ZXingScannerView.ALL_FORMATS.size(); i++) {
-                mSelectedIndices.add(i);
-            }
-        }
+        List<BarcodeFormat> formats = new ArrayList<>();
+        formats.add(BarcodeFormat.QR_CODE);
 
-        for (int index : mSelectedIndices) {
-            formats.add(ZXingScannerView.ALL_FORMATS.get(index));
-        }
         if (mScannerView != null) {
             mScannerView.setFormats(formats);
         }
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        switch (requestCode) {
-            case PermissionUtils.REQUEST_CAMERA: {
-                if (PermissionUtils.isPermissionResultGranted(grantResults)) {
-                    startScanner();
-                }
-            }
-        }
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
-
-        if (PermissionUtils.isPermissionGranted(mActivity, PermissionUtils.CAMERA_PERMISSIONS, PermissionUtils.REQUEST_CAMERA)) {
-            startScanner();
-        }
-
-    }
 
     private void startScanner() {
         mScannerView.setResultHandler(this);
-        mScannerView.startCamera(mCameraId);
-        mScannerView.setFlash(mFlash);
-        mScannerView.setAutoFocus(mAutoFocus);
-    }
-
-    @Override
-    public void onSaveInstanceState(Bundle outState) {
-        super.onSaveInstanceState(outState);
-        outState.putBoolean(FLASH_STATE, mFlash);
-        outState.putBoolean(AUTO_FOCUS_STATE, mAutoFocus);
-        outState.putIntegerArrayList(SELECTED_FORMATS, mSelectedIndices);
-        outState.putInt(CAMERA_ID, mCameraId);
+        mScannerView.startCamera();
+        mScannerView.setAutoFocus(true);
     }
 
     @Override
     public void handleResult(Result rawResult) {
         Vibrator v = (Vibrator) this.getSystemService(Context.VIBRATOR_SERVICE);
         v.vibrate(500);
-        Log.d("WARD", rawResult.getText());
-        if(rawResult.getText().equals(oneItem)) {
-            Intent intent = new Intent();
-            intent.putExtra("numberOfItems",1);
-            setResult(RESULT_OK,intent);
-            finish();
-        }else if(rawResult.getText().equals(twoItem)) {
-            Intent intent = new Intent();
-            intent.putExtra("numberOfItems",2);
-            setResult(RESULT_OK,intent);
-            finish();
-        }else {
-            new AlertDialog.Builder(this)
-                    .setTitle("Oops")
-                    .setMessage("Invalid QR Code!")
-                    .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                        public void onClick(DialogInterface dialog, int which) {
-                            mScannerView.resumeCameraPreview(ScanActivity.this);
-                        }
-                    })
-                    .setIcon(android.R.drawable.ic_dialog_alert)
-                    .show();
+
+        String scan = rawResult.getText();
+        boolean qrMatches = false;
+        String[] qr_map = getResources().getStringArray(R.array.qr_map);
+
+        for (int i = 0, size = qr_map.length; i < size; i++) {
+            if (remoteConfig.getString(qr_map[i]).equals(scan)) {
+                upDateStamps(i);
+                qrMatches = true;
+                break;
+            }
         }
+
+        if (!qrMatches) showAlert("Invalid QR Code!");
+    }
+
+    private void upDateStamps(final int i) {
+        final DatabaseReference userReference = Helper.getUserReference(this);
+        userReference.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                User current = dataSnapshot.getValue(User.class);
+
+                if (i == 0) {
+                    if (current.getStampCount() < 10) {
+                        showAlert("You don't have enough stamps to redeem.");
+                        return;
+                    }
+
+                    userReference
+                            .child(DATABASE_NODE_USER_STAMP_COUNT)
+                            .setValue(current.getStampCount() - 10);
+
+                    userReference
+                            .child(DATABASE_NODE_USER_REDEEM_COUNT)
+                            .setValue(current.getRedeemCount() + 1);
+                } else {
+                    userReference
+                            .child(DATABASE_NODE_USER_STAMP_COUNT)
+                            .setValue(current.getStampCount() + i);
+                }
+
+                userReference
+                        .child("allStamps")
+                        .push()
+                        .setValue(new Stamp(i, Helper.getTime(new Date().getTime() / 1000,
+                                "dd MMMM yyyy 'at' hh:mm:ss aaa")));
+
+                Intent intent = new Intent();
+                setResult(RESULT_OK, intent);
+                finish();
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
+    }
+
+    private void showAlert(String message) {
+        new AlertDialog.Builder(this)
+                .setTitle("Oops")
+                .setMessage(message)
+                .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        mScannerView.resumeCameraPreview(ScanActivity.this);
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        cancel(null);
+                    }
+                })
+                .setIcon(R.drawable.ic_qr_error)
+                .show();
     }
 
     @Override
     public void onPause() {
         super.onPause();
         mScannerView.stopCamera();
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
     }
 
     public void cancel(View view) {

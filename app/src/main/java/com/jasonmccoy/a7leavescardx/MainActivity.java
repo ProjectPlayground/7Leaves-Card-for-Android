@@ -1,318 +1,504 @@
 package com.jasonmccoy.a7leavescardx;
 
-import android.app.AlarmManager;
-import android.app.PendingIntent;
+import android.Manifest;
+import android.app.FragmentManager;
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.location.LocationManager;
+import android.net.Uri;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+import android.support.design.widget.CoordinatorLayout;
+import android.support.design.widget.FloatingActionButton;
+import android.support.design.widget.NavigationView;
+import android.support.design.widget.Snackbar;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
+import android.support.v4.view.GravityCompat;
+import android.support.v4.widget.DrawerLayout;
+import android.support.v7.app.ActionBar;
+import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.GridLayout;
+import android.support.v7.widget.Toolbar;
+import android.util.Log;
+import android.view.MenuItem;
 import android.view.View;
-import android.view.WindowManager;
-import android.view.animation.Animation;
-import android.view.animation.AnimationUtils;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.ImageView;
+import android.widget.TextView;
+import android.widget.Toast;
 
-import com.bumptech.glide.Glide;
+import com.firebase.ui.auth.AuthUI;
+import com.google.android.gms.appinvite.AppInvite;
+import com.google.android.gms.appinvite.AppInviteInvitationResult;
+import com.google.android.gms.appinvite.AppInviteReferral;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.ResultCallback;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.remoteconfig.FirebaseRemoteConfig;
+import com.jasonmccoy.a7leavescardx.events.NearestStoreFoundEvent;
+import com.jasonmccoy.a7leavescardx.events.ProfileFinishEvent;
+import com.jasonmccoy.a7leavescardx.events.ProfileUpdateEvent;
+import com.jasonmccoy.a7leavescardx.events.RedeemFinishEvent;
+import com.jasonmccoy.a7leavescardx.events.ReferFinishEvent;
+import com.jasonmccoy.a7leavescardx.events.TeamFinishEvent;
+import com.jasonmccoy.a7leavescardx.events.UserLocationEvent;
+import com.jasonmccoy.a7leavescardx.fragments.ProfileFragment;
+import com.jasonmccoy.a7leavescardx.fragments.RedeemFragment;
+import com.jasonmccoy.a7leavescardx.fragments.ReferFragment;
+import com.jasonmccoy.a7leavescardx.fragments.TeamFragment;
+import com.jasonmccoy.a7leavescardx.items.Store;
+import com.jasonmccoy.a7leavescardx.items.User;
+import com.jasonmccoy.a7leavescardx.maps.LocationHelper;
+import com.jasonmccoy.a7leavescardx.maps.NearestStoreHelper;
 
-import java.util.concurrent.TimeUnit;
+import net.yslibrary.android.keyboardvisibilityevent.KeyboardVisibilityEvent;
 
-public class MainActivity extends AppCompatActivity {
+import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
+import org.greenrobot.eventbus.ThreadMode;
 
-    private ImageView ivBack;
-    private ImageView[] cups = new ImageView[10];
-    private int scanned = 0;
-    private int previous = 0;
-    private int totalNumberOfStamps = 0;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Locale;
+
+import butterknife.BindView;
+import butterknife.ButterKnife;
+import butterknife.OnClick;
+import pub.devrel.easypermissions.AfterPermissionGranted;
+import pub.devrel.easypermissions.AppSettingsDialog;
+import pub.devrel.easypermissions.EasyPermissions;
+
+import static android.support.v4.widget.DrawerLayout.LOCK_MODE_LOCKED_CLOSED;
+import static android.support.v4.widget.DrawerLayout.LOCK_MODE_UNLOCKED;
+import static com.jasonmccoy.a7leavescardx.AppClass.TEST;
+import static com.jasonmccoy.a7leavescardx.LoginActivity.USER_INFO_PREFERENCES;
+import static com.jasonmccoy.a7leavescardx.LoginActivity.isUserLogIn;
+import static com.jasonmccoy.a7leavescardx.fragments.RedeemFragment.ARGS_REFERRAL_CODE;
+import static com.jasonmccoy.a7leavescardx.maps.NearestStoreHelper.NEAREST_STORE_ACTION_CHECK_USER_POSITION;
+import static com.jasonmccoy.a7leavescardx.maps.NearestStoreHelper.NEAREST_STORE_ACTION_OPEN_MAPS;
+
+public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener,
+        ResultCallback<AppInviteInvitationResult>, GoogleApiClient.ConnectionCallbacks,
+        GoogleApiClient.OnConnectionFailedListener, EasyPermissions.PermissionCallbacks {
+
+    private static final String TAG = TEST + MainActivity.class.getSimpleName();
+    private static final int RC_CAMERA_AND_LOCATION = 100;
+
+    private GoogleApiClient googleApiClient;
+    private FragmentManager fragmentManager;
+
+    @BindView(R.id.toolbar)
+    Toolbar toolbar;
+    @BindView(R.id.drawer_layout)
+    DrawerLayout drawer;
+    @BindView(R.id.nav_view)
+    NavigationView navigationView;
+    @BindView(R.id.stamps_grid)
+    GridLayout stampGrid;
+    @BindView(R.id.fab)
+    FloatingActionButton fab;
+    @BindView(R.id.coordinator)
+    CoordinatorLayout coordinatorLayout;
+
+    private boolean mToolBarNavigationListenerIsRegistered = false;
+    private ActionBarDrawerToggle toggle;
+    private ActionBar actionBar;
+    private ProgressDialog progressDialog;
+
+    ImageView userIcon;
+    TextView userName;
+    TextView userEmail;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager
-                .LayoutParams.FLAG_FULLSCREEN);
-
         setContentView(R.layout.activity_main);
+        ButterKnife.bind(this);
+        Log.d(TAG, "onCreate");
 
-        setup();
+        FirebaseRemoteConfig.getInstance().fetch();
+        fragmentManager = getFragmentManager();
 
+        setSupportActionBar(toolbar);
+        actionBar = getSupportActionBar();
+
+        toggle = new ActionBarDrawerToggle(
+                this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
+        drawer.addDrawerListener(toggle);
+        toggle.syncState();
+        navigationView.setNavigationItemSelectedListener(this);
+
+        View nav = navigationView.getHeaderView(0);
+
+        userIcon = (ImageView) nav.findViewById(R.id.user_icon);
+        userName = (TextView) nav.findViewById(R.id.user_name);
+        userEmail = (TextView) nav.findViewById(R.id.user_email);
+
+
+        setUpUser();
+        connectToGoogle();
+        requestPermissions();
     }
 
+    private void requestPermissions() {
+        boolean location = ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_CONTACTS)
+                != PackageManager.PERMISSION_GRANTED;
+        boolean camera = ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_CONTACTS)
+                != PackageManager.PERMISSION_GRANTED;
 
-    private void setup() {
-        ivBack = (ImageView) findViewById(R.id.ivBack);
-        cups[0] = (ImageView) findViewById(R.id.g1);
-        cups[1] = (ImageView) findViewById(R.id.g2);
-        cups[2] = (ImageView) findViewById(R.id.g3);
-        cups[3] = (ImageView) findViewById(R.id.g4);
-        cups[4] = (ImageView) findViewById(R.id.g5);
-        cups[5] = (ImageView) findViewById(R.id.g6);
-        cups[6] = (ImageView) findViewById(R.id.g7);
-        cups[7] = (ImageView) findViewById(R.id.g8);
-        cups[8] = (ImageView) findViewById(R.id.g9);
-        cups[9] = (ImageView) findViewById(R.id.g10);
 
-        Glide.with(this).load(R.drawable.background).into(ivBack);
-
-        for (int i = 0; i < 10; i++) {
-            Glide.with(getApplicationContext()).load(R.drawable.empty_glass).into(cups[i]);
+        if (location && camera) {
+            String[] perms = {android.Manifest.permission.CAMERA, android.Manifest.permission.ACCESS_FINE_LOCATION};
+            ActivityCompat.requestPermissions(this, perms, RC_CAMERA_AND_LOCATION);
         }
-
-        Glide.with(this).load(R.drawable.background).into(ivBack);
-
-        if (getIsFirstLaunch()) {
-            setIsFirstLaunch(false);
-            startAlert();
-        }
-        scanned = getScannedCupsCount();
-        previous = scanned;
-        totalNumberOfStamps = getTotalNumberOfStamps();
-        clearCups();
-        updateCups(0);
-    }
-
-    public void redeem(View view) {
-        animateReddem(view);
     }
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        EasyPermissions.onRequestPermissionsResult(requestCode, permissions, grantResults, this);
 
-        if (requestCode == 11 && resultCode == RESULT_OK) {
-            int result = data.getIntExtra("numberOfItems", 1);
-            int tmpResult = result;
-            scanned = scanned + tmpResult;
-            if (scanned > 10) {
-                clearCups();
-                scanned = scanned - result;
-                if (scanned == 9) {
-                    if (result == 1) {
-                        tmpResult = 1;
-                        scanned = scanned + tmpResult;
-                    } else if (result == 2) {
-                        tmpResult = 1;
-                        scanned = tmpResult;
+        String[] perms = {android.Manifest.permission.CAMERA, Manifest.permission.ACCESS_FINE_LOCATION};
+
+        if (requestCode == AppSettingsDialog.DEFAULT_SETTINGS_REQ_CODE) {
+            Log.d(TAG, Arrays.toString(permissions) + "");
+            if (!EasyPermissions.hasPermissions(this, perms)) {
+                Log.d(TAG, Arrays.toString(permissions) + "");
+                Toast.makeText(this, "Permissions were not granted.", Toast.LENGTH_SHORT).show();
+                finish();
+            }
+        }
+    }
+
+    @AfterPermissionGranted(RC_CAMERA_AND_LOCATION)
+    private void onReceivePermission() {
+        String[] perms = {android.Manifest.permission.CAMERA, Manifest.permission.ACCESS_FINE_LOCATION};
+        if (!EasyPermissions.hasPermissions(this, perms)) {
+            EasyPermissions.requestPermissions(this, getString(R.string.camera_and_location_rationale),
+                    RC_CAMERA_AND_LOCATION, perms);
+        }
+    }
+
+    @Override
+    public void onPermissionsDenied(int requestCode, List<String> perms) {
+        if (EasyPermissions.somePermissionPermanentlyDenied(this, perms)) {
+            new AppSettingsDialog.Builder(this).build().show();
+        }
+    }
+
+    @Override
+    public void onPermissionsGranted(int requestCode, List<String> perms) {
+    }
+
+    private void setUpUser() {
+        User currentUser = User.getCurrentUser(this);
+        userName.setText(currentUser.getName());
+        userEmail.setText(currentUser.getEmail());
+        Helper.loadImage(this, currentUser.getPhotoURL(), userIcon);
+        Helper.getUserReference(this).addValueEventListener(userListener);
+    }
+
+    public void connectToGoogle() {
+        if (googleApiClient == null) {
+            googleApiClient = new GoogleApiClient.Builder(this)
+                    .addConnectionCallbacks(this)
+                    .addOnConnectionFailedListener(this)
+                    .addApi(AppInvite.API)
+                    .build();
+        }
+    }
+
+    @Override
+    public void onConnected(@Nullable Bundle bundle) {
+        AppInvite.AppInviteApi.getInvitation(googleApiClient, this, false).setResultCallback(this);
+    }
+
+    @Override
+    public void onResult(@NonNull AppInviteInvitationResult appInviteInvitationResult) {
+        String link = AppInviteReferral.getDeepLink(appInviteInvitationResult.getInvitationIntent());
+        if (link == null) return;
+        link = link.substring(link.indexOf("=") + 1);
+        displayRedeemFragment(link);
+    }
+
+    @Override
+    public void onConnectionSuspended(int i) {
+    }
+
+    @Override
+    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+    }
+
+    ValueEventListener userListener = new ValueEventListener() {
+        @Override
+        public void onDataChange(DataSnapshot dataSnapshot) {
+            User currentUser = dataSnapshot.getValue(User.class);
+            Helper.setStamps(stampGrid, currentUser);
+        }
+
+        @Override
+        public void onCancelled(DatabaseError databaseError) {
+        }
+    };
+
+    @OnClick(R.id.fab)
+    public void startRedeemQR() {
+        progressDialog = new ProgressDialog(this);
+        progressDialog.setTitle("Getting you location");
+        progressDialog.show();
+        LocationHelper.getLocation((LocationManager) getSystemService(LOCATION_SERVICE),
+                NEAREST_STORE_ACTION_CHECK_USER_POSITION);
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (drawer.isDrawerOpen(GravityCompat.START)) {
+            drawer.closeDrawer(GravityCompat.START);
+        } else {
+            super.onBackPressed();
+        }
+    }
+
+    @Override
+    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+        int id = item.getItemId();
+        switch (id) {
+            case R.id.ic_nav_profile:
+                fragmentManager.beginTransaction()
+                        .replace(R.id.fragment_place, new ProfileFragment(), ProfileFragment.TAG)
+                        .addToBackStack(ProfileFragment.TAG)
+                        .commit();
+                lockDrawer();
+                break;
+            case R.id.ic_nav_store:
+                LocationHelper.getLocation((LocationManager) getSystemService(LOCATION_SERVICE),
+                        NEAREST_STORE_ACTION_OPEN_MAPS);
+                break;
+            case R.id.ic_nav_refer:
+                fragmentManager.beginTransaction()
+                        .replace(R.id.fragment_place, new ReferFragment(), ReferFragment.TAG)
+                        .addToBackStack(ReferFragment.TAG)
+                        .commit();
+                lockDrawer();
+                break;
+            case R.id.ic_nav_redeem:
+                displayRedeemFragment(null);
+                break;
+            case R.id.ic_nav_team:
+                fragmentManager.beginTransaction()
+                        .replace(R.id.fragment_place, new TeamFragment(), TeamFragment.TAG)
+                        .addToBackStack(TeamFragment.TAG)
+                        .commit();
+                lockDrawer();
+                break;
+            case R.id.ic_nav_feedback:
+
+                break;
+            case R.id.nav_log_out:
+                logOutUser();
+                break;
+        }
+
+        drawer.closeDrawer(GravityCompat.START);
+        return true;
+    }
+
+    public void showBackButton(boolean show) {
+        fab.setVisibility(show ? View.GONE : View.VISIBLE);
+        if (show) {
+            drawer.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
+            toggle.setDrawerIndicatorEnabled(false);
+            actionBar.setDisplayHomeAsUpEnabled(true);
+            if (!mToolBarNavigationListenerIsRegistered) {
+                toggle.setToolbarNavigationClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        onBackPressed();
                     }
+                });
+                mToolBarNavigationListenerIsRegistered = true;
+            }
+        } else {
+            drawer.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED);
+            Helper.animateBars(toggle, drawer);
+            actionBar.setDisplayHomeAsUpEnabled(false);
+            toggle.setDrawerIndicatorEnabled(true);
+            toggle.setToolbarNavigationClickListener(null);
+            mToolBarNavigationListenerIsRegistered = false;
+        }
+    }
+
+
+    private void displayRedeemFragment(String referralCode) {
+        RedeemFragment redeemFragment = new RedeemFragment();
+        Bundle args = new Bundle();
+        args.putString(ARGS_REFERRAL_CODE, referralCode);
+        redeemFragment.setArguments(args);
+
+        fragmentManager.beginTransaction()
+                .replace(R.id.fragment_place, redeemFragment, RedeemFragment.TAG)
+                .addToBackStack(RedeemFragment.TAG)
+                .commit();
+        lockDrawer();
+    }
+
+
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void nearestStoreFound(UserLocationEvent event) {
+        switch (event.getAction()) {
+            case NEAREST_STORE_ACTION_OPEN_MAPS:
+                new NearestStoreHelper(this, NEAREST_STORE_ACTION_OPEN_MAPS,
+                        event.getLatitude(), event.getLongitude());
+                break;
+
+            case NEAREST_STORE_ACTION_CHECK_USER_POSITION:
+                new NearestStoreHelper(this, NEAREST_STORE_ACTION_CHECK_USER_POSITION,
+                        event.getLatitude(), event.getLongitude());
+                break;
+        }
+    }
+
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void nearestStoreFound(NearestStoreFoundEvent event) {
+        Store nearest = event.getNearest();
+
+        switch (event.getAction()) {
+            case NEAREST_STORE_ACTION_OPEN_MAPS:
+                String uri = String.format(Locale.getDefault(), "http://maps.google.com/maps?saddr=%f,%f(%s)&daddr=%f,%f (%s)",
+                        event.getUserLat(), event.getUserLan(), "My Location", nearest.getLat(), nearest.getLan(), nearest.getIdentifier());
+
+                Uri intentUri = Uri.parse(uri);
+                Intent mapIntent = new Intent(Intent.ACTION_VIEW, intentUri);
+                startActivity(mapIntent);
+
+                break;
+
+            case NEAREST_STORE_ACTION_CHECK_USER_POSITION:
+
+                boolean isUserNearStore = Helper.isUserNearStore(nearest.getRadius(), nearest.getLat(), nearest.getLan(),
+                        event.getUserLat(), event.getUserLan());
+                progressDialog.dismiss();
+                if (isUserNearStore) {
+                    Intent scan = new Intent(this, ScanActivity.class);
+                    startActivityForResult(scan, 11);
                 } else {
-                    tmpResult = result;
-                    scanned = tmpResult;
+
+                    Snackbar.make(coordinatorLayout, "You need to be in a store in order to scan a code.", Snackbar.LENGTH_LONG).show();
                 }
-            } else {
-                updateNumberOfStamps();
-            }
-
-            updateScannedCupsCount(scanned);
-            updateCups(tmpResult);
+                break;
         }
     }
 
-    private void updateNumberOfStamps() {
-        totalNumberOfStamps++;
-        setTotalNumberOfStamps(totalNumberOfStamps);
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void onMessageEvent(ProfileUpdateEvent event) {
+        setUpUser();
     }
 
-    private void updateCups(int result) {
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void removeProfileFragment(ProfileFinishEvent event) {
+        unlockDrawer();
+        fragmentManager.beginTransaction()
+                .remove(fragmentManager.findFragmentByTag(ProfileFragment.TAG))
+                .commit();
+    }
 
-        for (int i = 0; i < scanned - result; i++) {
-            Glide.with(getApplicationContext()).load(R.drawable.selected).into(cups[i]);
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void removeReferFragment(ReferFinishEvent event) {
+        unlockDrawer();
+        fragmentManager.beginTransaction()
+                .remove(fragmentManager.findFragmentByTag(ReferFragment.TAG))
+                .commit();
+    }
+
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void removeRedeemFragment(RedeemFinishEvent event) {
+        unlockDrawer();
+        fragmentManager.beginTransaction()
+                .remove(fragmentManager.findFragmentByTag(RedeemFragment.TAG))
+                .commit();
+    }
+
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void removeTeamFragment(TeamFinishEvent event) {
+        unlockDrawer();
+        fragmentManager.beginTransaction()
+                .remove(fragmentManager.findFragmentByTag(TeamFragment.TAG))
+                .commit();
+    }
+
+    @OnClick({R.id.facebook_icon, R.id.facebook_text, R.id.instagram_icon, R.id.instagram_text})
+    public void openSocial(View view) {
+        String uri = "";
+        switch (view.getId()) {
+            case R.id.facebook_icon:
+            case R.id.facebook_text:
+                uri = "https://www.facebook.com/7LeavesCafe";
+                break;
+
+            case R.id.instagram_icon:
+            case R.id.instagram_text:
+                uri = "https://www.instagram.com/7leavescafe";
+                break;
         }
 
-        if (result > 0) {
-            String ringtoneFileName = "click.mp3";
-            new AudioPlayer(ringtoneFileName, this);
+        Intent i = new Intent(Intent.ACTION_VIEW);
+        i.setData(Uri.parse(uri));
+        startActivity(i);
+    }
 
-            switch (result) {
-                case 1:
-                    Glide.with(getApplicationContext()).load(R.drawable.empty_glass).into
-                            (cups[scanned - 1]);
-                    animateView(cups[scanned - 1]);
-                    break;
-                case 2:
-                    if (scanned == 1) {
-                        Glide.with(getApplicationContext()).load(R.drawable.empty_glass).into
-                                (cups[scanned - 1]);
-                        animateView(cups[scanned - 1]);
-                    } else {
-                        Glide.with(getApplicationContext()).load(R.drawable.empty_glass).into
-                                (cups[scanned - 2]);
-                        Glide.with(getApplicationContext()).load(R.drawable.empty_glass).into
-                                (cups[scanned - 1]);
-                        animateTwoView(cups[scanned - 2], cups[scanned - 1]);
+    private void lockDrawer() {
+        drawer.setDrawerLockMode(LOCK_MODE_LOCKED_CLOSED);
+        showBackButton(true);
+    }
+
+    private void unlockDrawer() {
+        drawer.setDrawerLockMode(LOCK_MODE_UNLOCKED);
+        showBackButton(false);
+
+        if (KeyboardVisibilityEvent.isKeyboardVisible(this)) {
+            InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+            imm.hideSoftInputFromWindow(drawer.getWindowToken(), 0);
+        }
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        googleApiClient.connect();
+        EventBus.getDefault().register(this);
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        googleApiClient.disconnect();
+        EventBus.getDefault().unregister(this);
+    }
+
+
+    private void logOutUser() {
+        final SharedPreferences preferences = getSharedPreferences(USER_INFO_PREFERENCES, MODE_PRIVATE);
+        Log.d(TAG, "logOutUser");
+        AuthUI.getInstance()
+                .signOut(this)
+                .addOnCompleteListener(new OnCompleteListener<Void>() {
+                    public void onComplete(@NonNull Task<Void> task) {
+                        isUserLogIn = false;
+                        preferences.edit().clear().apply();
+                        startActivity(new Intent(MainActivity.this, LoginActivity.class));
+                        finish();
                     }
-                    break;
-            }
-        }
-    }
-
-    private void clearCups() {
-        for (int i = 0; i < 10; i++) {
-            Glide.with(getApplicationContext()).load(R.drawable.empty_glass).into(cups[i]);
-        }
-    }
-
-    private int getScannedCupsCount() {
-        SharedPreferences sharedPref = this.getPreferences(Context.MODE_PRIVATE);
-        int cops = sharedPref.getInt("cups", 0);
-        return cops;
-    }
-
-    private void updateScannedCupsCount(int count) {
-        SharedPreferences sharedPref = this.getPreferences(Context.MODE_PRIVATE);
-        SharedPreferences.Editor editor = sharedPref.edit();
-        editor.putInt("cups", count);
-        editor.apply();
-    }
-
-    private void setIsFirstLaunch(boolean flag) {
-        SharedPreferences sharedPref = this.getPreferences(Context.MODE_PRIVATE);
-        SharedPreferences.Editor editor = sharedPref.edit();
-        editor.putBoolean("isFirstLaunch", flag);
-        editor.apply();
-    }
-
-    private boolean getIsFirstLaunch() {
-        SharedPreferences sharedPref = this.getPreferences(Context.MODE_PRIVATE);
-        boolean flag = sharedPref.getBoolean("isFirstLaunch", true);
-        return flag;
-    }
-
-    private int getTotalNumberOfStamps() {
-        SharedPreferences sharedPref = this.getPreferences(Context.MODE_PRIVATE);
-        int cops = sharedPref.getInt("stamps", 0);
-        return cops;
-    }
-
-    private void setTotalNumberOfStamps(int count) {
-        SharedPreferences sharedPref = this.getPreferences(Context.MODE_PRIVATE);
-        SharedPreferences.Editor editor = sharedPref.edit();
-        editor.putInt("stamps", count);
-        editor.apply();
-    }
-
-    private void animateView(final View view) {
-
-        // Load the animation
-        Animation myAnim = AnimationUtils.loadAnimation(this, R.anim.bounce);
-        double animationDuration = 1500;
-        myAnim.setDuration((long) animationDuration);
-
-        // Use custom animation interpolator to achieve the bounce effect
-        MyBounceInterpolator interpolator = new MyBounceInterpolator(0.30, 20.0);
-        myAnim.setInterpolator(interpolator);
-        view.startAnimation(myAnim);
-
-        myAnim.setAnimationListener(new Animation.AnimationListener() {
-            @Override
-            public void onAnimationStart(Animation animation) {
-                Glide.with(getApplicationContext()).load(R.drawable.selected).into((ImageView)
-                        view);
-            }
-
-            @Override
-            public void onAnimationEnd(Animation animation) {
-
-            }
-
-            @Override
-            public void onAnimationRepeat(Animation animation) {
-
-            }
-        });
-    }
-
-    private void animateTwoView(final View view1, final View view2) {
-
-        Glide.with(getApplicationContext()).load(R.drawable.empty_glass).into((ImageView)
-                view2);
-
-        // Load the animation
-        Animation myAnim1 = AnimationUtils.loadAnimation(this, R.anim.bounce);
-        double animationDuration = 1500;
-        myAnim1.setDuration((long) animationDuration);
-
-        // Use custom animation interpolator to achieve the bounce effect
-        MyBounceInterpolator interpolator = new MyBounceInterpolator(0.30, 20.0);
-        myAnim1.setInterpolator(interpolator);
-        view1.startAnimation(myAnim1);
-
-        final Animation myAnim2 = AnimationUtils.loadAnimation(this, R.anim.bounce);
-        myAnim2.setDuration((long) animationDuration);
-
-        // Use custom animation interpolator to achieve the bounce effect
-        myAnim2.setInterpolator(interpolator);
-
-        myAnim1.setAnimationListener(new Animation.AnimationListener() {
-            @Override
-            public void onAnimationStart(Animation animation) {
-                Glide.with(getApplicationContext()).load(R.drawable.selected).into((ImageView)
-                        view1);
-            }
-
-            @Override
-            public void onAnimationEnd(Animation animation) {
-                view2.startAnimation(myAnim2);
-            }
-
-            @Override
-            public void onAnimationRepeat(Animation animation) {
-
-            }
-        });
-
-        myAnim2.setAnimationListener(new Animation.AnimationListener() {
-            @Override
-            public void onAnimationStart(Animation animation) {
-                Glide.with(getApplicationContext()).load(R.drawable.selected).into((ImageView)
-                        view2);
-            }
-
-            @Override
-            public void onAnimationEnd(Animation animation) {
-            }
-
-            @Override
-            public void onAnimationRepeat(Animation animation) {
-
-            }
-        });
-    }
-
-    private void animateReddem(View view) {
-
-        // Load the animation
-        final Animation myAnim = AnimationUtils.loadAnimation(this, R.anim.bounce_button);
-        double animationDuration = 700;
-        myAnim.setDuration((long) animationDuration);
-
-        // Use custom animation interpolator to achieve the bounce effect
-        MyBounceInterpolator interpolator = new MyBounceInterpolator(0.15, 20.0);
-        myAnim.setInterpolator(interpolator);
-        view.startAnimation(myAnim);
-
-        myAnim.setAnimationListener(new Animation.AnimationListener() {
-            @Override
-            public void onAnimationStart(Animation animation) {
-
-            }
-
-            @Override
-            public void onAnimationEnd(Animation animation) {
-                Intent scan = new Intent(MainActivity.this, ScanActivity.class);
-                startActivityForResult(scan, 11);
-            }
-
-            @Override
-            public void onAnimationRepeat(Animation animation) {
-
-            }
-        });
-    }
-
-    public void startAlert() {
-        Intent intent = new Intent(this, MyBroadcastReceiver.class);
-        PendingIntent pendingIntent = PendingIntent.getBroadcast(
-                this.getApplicationContext(), 234324243, intent, 0);
-        AlarmManager alarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
-        alarmManager.set(AlarmManager.RTC_WAKEUP, System.currentTimeMillis()
-                + TimeUnit.DAYS.toMillis(3650), pendingIntent);
+                });
     }
 }

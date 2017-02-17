@@ -1,11 +1,35 @@
 <resources>
 
-    <!-- Base application theme. -->
-    <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
-        <!-- Customize your theme here. -->
-        <item name="colorPrimary">@color/colorPrimary</item>
-        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
-        <item name="colorAccent">@color/colorAccent</item>
-    </style>
+        <!-- Base application theme. -->
+        <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
+            <!-- Customize your theme here. -->
+            <item name="colorPrimary">@color/colorPrimary</item>
+            <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+            <item name="colorAccent">@color/colorAccent</item>
+        </style>
+
+        <style name="AppTheme.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar" />
+
+        <style name="AppTheme.PopupOverlay" parent="ThemeOverlay.AppCompat.Light" />
+
+        <style name="AuthTheme" parent="FirebaseUI">
+            <item name="colorPrimary">@color/colorPrimary</item>
+            <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+            <item name="colorAccent">@color/colorAccent</item>
+            <item name="colorControlNormal">#FFBB00</item>
+            <item name="android:windowBackground">@color/colorPrimary</item>
+        </style>
+
+        <style name="AppTheme.ButtonBlue" parent="Widget.AppCompat.Button.Colored">
+            <item name="colorButtonNormal">@color/colorPrimary</item>
+        </style>
+
+        <style name="Stamp">
+            <item name="android:layout_width">58dp</item>
+            <item name="android:layout_height">58dp</item>
+            <item name="android:layout_margin">4dp</item>
+            <item name="android:src">@drawable/ic_tire_placeholder</item>
+        </style>
+
 
 </resources>

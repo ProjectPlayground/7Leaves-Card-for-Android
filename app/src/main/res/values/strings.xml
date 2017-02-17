@@ -1,3 +1,23 @@
 <resources>
     <string name="app_name">7Leaves Cafe</string>
+
+    <!-- Facebook -->
+    <string name="facebook_application_id" translatable="false">277765585977327</string>
+    <string name="facebook_login_protocol_scheme" translatable="false">fb-277765585977327</string>
+
+    <string name="navigation_drawer_open">Open navigation drawer</string>
+    <string name="navigation_drawer_close">Close navigation drawer</string>
+
+    <!-- Strings related to login -->
+    <string name="default_user_icon">http://www.innovativementoring.net/assets/img/icon-user.png</string>
+
+
+    <string name="refer_message">For every friend that redeems (collects 10 stamps), you get 1 stamp.</string>
+
+    <string name="dynamic_link_start">https://jf27z.app.goo.gl/?link=</string>
+    <string name="dynamic_link_end">&amp;apn=com.jasonmccoy.a7leavescardx&amp;isi=1187702945&amp;ibi=com.JasonMcCoy.7LeavesCard&amp;st=Get+free+stamp&amp;sd=Get+a+free+stamp+when+using+this+code!&amp;si=https://firebasestorage.googleapis.com/v0/b/leaves-cafe.appspot.com/o/selectedStar%25402x.png?alt%3Dmedia%26token%3D61ffb2ee-a866-40ba-a1a2-57fa9cc2c852</string>
+    <string name="share_redeem_message">This app is terrific, give it a try and get 1 free stamp if you use my redeem code: %s !</string>
+    <string name="camera_and_location_rationale">We need camera permission in order to scan a QR code that you will receive.  We use the location to make shure that you are in one of our stores before scaning.</string>
+
+
 </resources>

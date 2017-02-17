@@ -1,0 +1,42 @@
+{
+  "project_info": {
+    "project_number": "774307085086",
+    "firebase_url": "https://leaves-cafe.firebaseio.com",
+    "project_id": "leaves-cafe",
+    "storage_bucket": "leaves-cafe.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:774307085086:android:b08c1f3e1cde9524",
+        "android_client_info": {
+          "package_name": "com.jasonmccoy.a7leavescardx"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "774307085086-np4lkgouah1rqkjoh7sm1sf8ilmtsvgf.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAWIsoXFNP03H60EZIgTjMF56CCjdDDPkc"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
